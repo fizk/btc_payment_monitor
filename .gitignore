@@ -5,4 +5,5 @@
 # Ignore local settings file
 code/bitbuy/settings_local.ini
 
+code/db.sqlite3
 
