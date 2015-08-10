@@ -2,13 +2,15 @@ from django.core.management.base import BaseCommand, CommandError
 from monitor.models import *
 
 import bitcoin
-from bitcoin.core import CBlock, b2lx, b2x, x, lx
 import bitcoin.rpc
+from bitcoin.core import CBlock, b2lx, b2x, x, lx
+
 import struct
 import sys
 import time
 import datetime
 import random
+
 
 # FIXME: How many blocks to loop through?
 # FIXME: Limitation, an address can only be monitored once ...
@@ -22,7 +24,7 @@ class Command(BaseCommand):
 
 	# Write out some text message
 	def say(self, txt):
-		return self.stdout.write("btc_payment_monitor/bitcoin_monitor:%s" % txt)
+		return self.stdout.write("btc_payment_monitor/btc_monitor: %s" % txt)
 
 	#
 	# Write out a debug message 
@@ -93,7 +95,7 @@ class Command(BaseCommand):
 		return True
 
 	def handle(self, *args, **options):
-		self.say('bitcoin_network/bitcoin_monitor initializing ...')
+		self.say('Initializing ...')
 
 		#
 		# Connect to the bitcoind server
