@@ -1,0 +1,8 @@
+
+# Ignore python-caches
+*.pyc
+
+# Ignore local settings file
+code/bitbuy/settings_local.ini
+
+
