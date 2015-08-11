@@ -37,6 +37,9 @@ class Command(BaseCommand):
 
 		else:
 			return False
+    
+	def add_arguments(self, parser):
+		parser.add_argument('debug_level', nargs='+', type=int)
 
 	# 
 	# Update the monitoring data we use
@@ -44,8 +47,7 @@ class Command(BaseCommand):
 	#
 
 	def update_monitoring_data(self):
-		self.debug(4, 'Updating monitoring data ...')
-
+	
 		#
 		# Clean out addresses we used before,
 		# and clean out the dict-object we
@@ -96,6 +98,20 @@ class Command(BaseCommand):
 
 	def handle(self, *args, **options):
 		self.say('Initializing ...')
+
+		# 
+		# Set debug level
+		#
+
+		try:
+			self.debug_level = options['debug_level'][0]
+
+		except:
+			self.debug_level = 1
+
+		self.debug(1, "Set debug level; debug_level=%i" % self.debug_level)
+		
+		self.debug(4, 'Updating monitoring data ...')
 
 		#
 		# Connect to the bitcoind server
