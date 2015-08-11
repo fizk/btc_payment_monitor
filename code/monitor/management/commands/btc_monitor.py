@@ -14,7 +14,6 @@ import random
 
 # FIXME: How many blocks to loop through?
 # FIXME: Limitation, an address can only be monitored once ...
-# FIXME: Monitor confirmations
 # FIXME: TimeZone problem
 
 class Command(BaseCommand):
@@ -63,8 +62,8 @@ class Command(BaseCommand):
 		# that we should watch during the next run
 		# 
 
-		self.pm_objs = BPMPaymentMonitor.objects.filter(
-			amount_reached=False
+		self.bpm_monitor_objs = BPMPaymentMonitor.objects.filter(
+			goal_reached=False
 		).filter(
 			amount_desired__gte=0
 		).filter(
@@ -83,19 +82,62 @@ class Command(BaseCommand):
 		# to begin at
 		#
 
-		for pm_objs_cnt in range(0, len(self.pm_objs)):
-			self.monitor_addresses.append(self.pm_objs[pm_objs_cnt].address.address)
-			self.monitor_addresses_obj_mapping[self.pm_objs[pm_objs_cnt].address.address] = pm_objs_cnt
+		for bpm_monitor_objs_cnt in range(0, len(self.bpm_monitor_objs)):
+			self.monitor_addresses.append(self.bpm_monitor_objs[bpm_monitor_objs_cnt].address.address)
+			self.monitor_addresses_obj_mapping[self.bpm_monitor_objs[bpm_monitor_objs_cnt].address.address] = bpm_monitor_objs_cnt
 
-			if (self.pm_objs[pm_objs_cnt].block_number_scanned == 0):
-				self.pm_objs[pm_objs_cnt].block_number_scanned = self.pm_objs[pm_objs_cnt].block_number_start
+			if (self.bpm_monitor_objs[bpm_monitor_objs_cnt].block_number_scanned == 0):
+				self.bpm_monitor_objs[bpm_monitor_objs_cnt].block_number_scanned = self.bpm_monitor_objs[bpm_monitor_objs_cnt].block_number_start
 
-			if (self.pm_objs[pm_objs_cnt].block_number_start < self.block_number_current):
-				self.block_number_current = self.pm_objs[pm_objs_cnt].block_number_scanned
+			if (self.bpm_monitor_objs[bpm_monitor_objs_cnt].block_number_start < self.block_number_current):
+				self.block_number_current = self.bpm_monitor_objs[bpm_monitor_objs_cnt].block_number_scanned
+
+		self.debug(1, 'Figured what next block would be scanned; block_number=%i' % self.block_number_current)
 
 		self.debug(4, '... done')
 
 		return True
+
+	#
+	# Update number of confirmations associated
+	# with each active record still active in 
+	# BPMPaymentMonitor. Here, we will ask bitcoind 
+	# for number of confirmations for each record.
+
+	def update_confirmations(self):
+		self.debug(2, 'Updating confirmations ...')
+
+		#
+		# Get all active monitors
+		#
+
+		for bpm_monitor_objs_cnt in range(0, len(self.bpm_monitor_objs)):
+			pm_obj = self.bpm_monitor_objs[bpm_monitor_objs_cnt]
+			pm_obj_transactions = pm_obj.transactions.all()
+
+			#
+			# Now, for each transaction associated with that, 
+			# get the raw transaction, get the number of confirmations
+			# and save that with the transaction.
+			#
+
+			for bpm_transaction in pm_obj_transactions:
+				block_vtx_info = self.proxy._call('getrawtransaction', bpm_transaction.transaction_hash, 1)
+
+				#
+				# This should never happen
+				#
+
+				if ((block_vtx_info['vout'][bpm_transaction.vout]['value'] * 100000000) != bpm_transaction.amount):
+					self.say("WARNING: Transaction fetched from bitcoind, with the same hash and vout as saved earlier in DB did not have same amount!")
+
+				else:
+					self.debug(4, 'Updated transaction with newer confirmation count; pk=%i, tx=%s, vout=%i, confirmations=%i' % (bpm_transaction.pk, bpm_transaction.transaction_hash, bpm_transaction.vout, bpm_transaction.confirmations))
+					bpm_transaction.confirmations = block_vtx_info['confirmations'] 
+					bpm_transaction.save()
+	
+
+		self.debug(2, '... done')
 
 	def handle(self, *args, **options):
 		self.say('Initializing ...')
@@ -117,13 +159,13 @@ class Command(BaseCommand):
 		#
 
 		bitcoin.SelectParams('testnet')
-		proxy = bitcoin.rpc.Proxy()
+		self.proxy = bitcoin.rpc.Proxy()
 
 		#
 		# Get the latest block number
 		#
 
-		bitcoin_getinfo = proxy._call('getinfo')
+		bitcoin_getinfo = self.proxy._call('getinfo')
 		self.block_number_current = bitcoin_getinfo['blocks'] - 1
 
 		#
@@ -138,19 +180,22 @@ class Command(BaseCommand):
 
 			# Try to get next block
 			try:
-				block = proxy.getblock(proxy.getblockhash(self.block_number_current))
+				block = self.proxy.getblock(self.proxy.getblockhash(self.block_number_current))
 
 			# If that fails, sleep -- we 
 			# probably just hit the end of
 			# the currently aggreed on blocks
 			except IndexError:
-				self.debug(1, "No newer block found... sleeping")
+				self.debug(1, "No newer block found... ")
+
+				self.update_confirmations()
+
+				self.debug(1, 'Now sleeping')
 
 				time.sleep(32)
 
-				# FIXME: Check confirmations here
-
 				self.update_monitoring_data()
+
 
 				continue
 
@@ -170,7 +215,7 @@ class Command(BaseCommand):
 				block_vtx = block.vtx[block_vtx_cnt]
 				self.debug(2, "Processing transaction; tx=%s" % b2lx(block_vtx.GetHash()))
 
-				block_vtx_info = proxy._call('getrawtransaction', b2lx(block_vtx.GetHash()), 1)
+				block_vtx_info = self.proxy._call('getrawtransaction', b2lx(block_vtx.GetHash()), 1)
 
 				# Get number of vouts in this transaction
 				block_vtx_vout_len = len(block_vtx_info['vout'])
@@ -234,7 +279,7 @@ class Command(BaseCommand):
 							# from a previous run. If so, do nothing about this.
 
 							# Find the monitoring-objects via the linkage dict
-							pm_obj = self.pm_objs[self.monitor_addresses_obj_mapping[self.monitor_addresses[self.monitor_addresses_cnt]]]
+							pm_obj = self.bpm_monitor_objs[self.monitor_addresses_obj_mapping[self.monitor_addresses[self.monitor_addresses_cnt]]]
 
 							# Calculate the value of the vout
 							trans_value = int(block_vtx_info['vout'][block_vtx_vout_cnt]['value'] * 100000000)
@@ -264,7 +309,7 @@ class Command(BaseCommand):
 								transaction.transaction_hash = b2lx(block_vtx.GetHash())
 								transaction.amount = trans_value
 								transaction.vout = block_vtx_vout_cnt
-								transaction.confirmations = block_vtx['confirmations']
+								transaction.confirmations = block_vtx_info['confirmations']
 								transaction.save()
 
 								pm_obj.transactions.add(transaction)
@@ -285,14 +330,14 @@ class Command(BaseCommand):
 			# For each we are monitoring, save
 			# what block we have reached
 
-			for pm_obj in self.pm_objs:
+			for pm_obj in self.bpm_monitor_objs:
 				pm_obj.block_number_scanned = self.block_number_current
 
 				# Only save occationally to save resources
 				# -- not much will be lost anyway, and over 
 				# time we might save quite a lot of resources
 
-				if (100 % random.randrange(0, 100) == 0):
+				if (random.randrange(0, 10) == 5):
 					pm_obj.save()
 
 			# Increment block number for next round 
