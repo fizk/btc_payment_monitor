@@ -24,7 +24,7 @@ class Command(BaseCommand):
 
 	# Write out some text message
 	def say(self, txt):
-		return self.stdout.write("btc_payment_monitor/btc_monitor: %s" % txt)
+		return self.stdout.write("[%s] btc_payment_monitor/btc_monitor: %s" % (time.ctime(), txt) )
 
 	#
 	# Write out a debug message 
@@ -47,6 +47,7 @@ class Command(BaseCommand):
 	#
 
 	def update_monitoring_data(self):
+		self.debug(4, 'Updating monitoring data ... ')
 	
 		#
 		# Clean out addresses we used before,
@@ -111,8 +112,6 @@ class Command(BaseCommand):
 
 		self.debug(1, "Set debug level; debug_level=%i" % self.debug_level)
 		
-		self.debug(4, 'Updating monitoring data ...')
-
 		#
 		# Connect to the bitcoind server
 		#
