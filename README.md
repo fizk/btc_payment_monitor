@@ -72,7 +72,7 @@ with the following data submitted:
     "pk" : 9,
     "cancelled": true
 }
-``
+```
 
 and this will cause the object be updated, and subsequently monitoring will cease.
 
