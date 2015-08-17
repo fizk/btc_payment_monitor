@@ -44,6 +44,9 @@ class bpm_payment_monitor_list(APIView):
 		serializer = BPMPaymentMonitorSerializer(bpm_monitor_objs, many=True)
 
 		for i in range(0, len(serializer.data)):
+			if (serializer.data[i]['id'] != bpm_monitor_objs[i].pk):
+				ParseError('Serialized objects do not match those fed into serializer')
+
 			serializer.data[i]['address'] = bpm_monitor_objs[i].address.address
 
 		return Response(serializer.data)
@@ -56,8 +59,6 @@ class bpm_payment_monitor_list(APIView):
 		serializer = BPMPaymentMonitorSerializer(data=request.data)
 
 		if (serializer.is_valid()):
-
-			# FIXME: Try re-using older object...
 			bpm_address = BPMAddress.objects.filter(address=serializer.initial_data['address'])
 
 			if (len(bpm_address) == 0):
