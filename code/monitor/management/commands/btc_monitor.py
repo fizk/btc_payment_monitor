@@ -179,6 +179,15 @@ class Command(BaseCommand):
 		self.say('... initialized. Started processing.')
 
 		while 1:
+			self.debug(1, 'Starting next round ...')
+
+			# Nothing to monitor? Sleep for a while	
+			if (len(self.bpm_monitor_objs) == 0):
+				self.debug(1, '.. did not find anything to monitor. Sleeping.')
+
+				time.sleep(8)
+
+				continue
 
 			# Try to get next block
 			try:
@@ -188,18 +197,19 @@ class Command(BaseCommand):
 			# probably just hit the end of
 			# the currently aggreed on blocks
 			except IndexError:
-				self.debug(1, "No newer block found... ")
+				self.debug(1, "... no newer block found... ")
 
-				self.update_confirmations()
+				if (random.randrange(0, 10) <= 3): # Only in ~30% of cases.
+					self.update_confirmations()
 
-				self.debug(1, 'Now sleeping')
+				self.debug(1, '... now sleeping.')
 
 				time.sleep(32)
 
 				self.update_monitoring_data()
 
-
 				continue
+
 
 			self.debug(1, "Processing block; no=%s, hash=%s" % (str(self.block_number_current), b2lx(block.GetHash())))
 
@@ -339,8 +349,9 @@ class Command(BaseCommand):
 				# -- not much will be lost anyway, and over 
 				# time we might save quite a lot of resources
 
-				if (random.randrange(0, 10) == 5):
+				if (random.randrange(0, 10) <= 3): # Only in ~30% of cases.
 					pm_obj.save()
+					pm_obj.update_calculations()
 
 			# Increment block number for next round 
 			self.block_number_current += 1

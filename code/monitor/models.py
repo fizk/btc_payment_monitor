@@ -37,22 +37,21 @@ class BPMPaymentMonitor(models.Model):
 
 	def update_calculations(self):
 		amount_paid_total = 0
-		transactions_vouts_all_confirmations_ok = None
+		transactions_vouts_confirmations_ok = 0
+		transactions_vouts_confirmations_cnt = 0
 
 		for transaction_item in self.transactions.all():
 			amount_paid_total += transaction_item.amount
 
-			if (transaction_item.confirmations >= self.confirmations_required):
-				if (transactions_vouts_all_confirmations_ok != False):
-					transactions_vouts_all_confirmations_ok = True
+			transactions_vouts_confirmations_cnt += 1
 
-			else:
-				transactions_vouts_all_confirmations_ok = False
+			if (transaction_item.confirmations >= self.confirmations_required):
+				transactions_vouts_confirmations_ok += 1
 
 		self.amount_paid = amount_paid_total
 
 		# FIXME: confirmations_required also
-		if ((self.amount_paid >= self.amount_desired) and (transactions_vouts_all_confirmations_ok == True)):
+		if ((self.amount_paid >= self.amount_desired) and (transactions_vouts_confirmations_ok == transactions_vouts_confirmations_cnt)):
 			self.goal_reached = True
 			self.goal_reached_at = datetime.now()
 
