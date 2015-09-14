@@ -256,15 +256,6 @@ class Command(BaseCommand):
 					# we can do calculations with it pertaining to our monitoring
 					# (only if not done before!)
 
-					# FIXME: Rewrite the check so that we do not go through a loop
-					# to check if any of the monitoring-addresses is in the transaction
-					# -- use only .index() to do this.
-
-					# FIXME: Use set to figure out if any of the addresses 
-					# monitored are in the transaction-output
-					# #g = list(set(folk).intersection(set(monitoring)))
-
-
 					for self.monitor_addresses_cnt in range(0, len(self.monitor_addresses)):
 						monitor_address_found = True
 
