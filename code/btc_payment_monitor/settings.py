@@ -12,18 +12,23 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+from ConfigParser import RawConfigParser
+parser = RawConfigParser()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+APPLICATION_ROOT = os.path.abspath(os.path.dirname(__file__))
+parser.readfp(open(os.path.join(APPLICATION_ROOT, 'settings_local.ini')))
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'rs=+hdt023$f4iadbe8b-hbkp+t=^g0q@ft7k+wjyh^2s4vtzp'
+SECRET_KEY = parser.get('global', 'secret_key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = parser.get('global', 'debug')
 
 ALLOWED_HOSTS = []
 
@@ -103,3 +108,5 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 STATIC_URL = '/static/'
+
+BPM_NET = parser.get('global', 'bpm_net')
