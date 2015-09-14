@@ -2,9 +2,9 @@
 
 This is a microservice to enable callers to monitor payments to addresses on the Bitcoin network.
 
-For instance, if you want to monitor payments to address 2NFePNEX3sYGnRozsvD47cq25vF4Sie5Vi4, anticipating 0.00500000 BTC, you might create a monitoring request with this microservice, and then poll it regularly to see if payment or payments have been sent to the address. When the amount you desire has been received by the address, a polled data will indicate so and how much was received. In addition, the microservice allows callers to specify at which block to start search for payments to the specified address, and what number of confirmations is required for each transaction giving payments to the address specified in order to be considered validated. 
+For instance, if you want to monitor payments to address 2NFePNEX3sYGnRozsvD47cq25vF4Sie5Vi4, anticipating 0.00500000 BTC, you might create a monitoring request with this microservice, and then poll it regularly to see if payment or payments have been sent to the address. When the amount you desire has been received by the address, polled data will indicate so and how much was received. In addition, the microservice allows callers to specify at which block to start search for payments, and what number of confirmations is required for each transaction giving payments to the address specified in order to be considered validated. 
 
-This microservice is written in Python, using the Django framework. To ask the webservice to monitor payments, callers must use RESTful HTTP requests, and the webservice will respond with JSON. To implement the webservice, rest_framework add-on is employed. 
+This microservice is written in Python, using the Django framework. To ask the webservice to monitor payments, callers must use REST-ful HTTP requests, and the webservice will respond with JSON. To implement the webservice, the rest_framework add-on is employed. 
 
 Access is controlled by authenticating once, and then using cookies to create and poll monitorings.
 
@@ -41,7 +41,7 @@ which will result in a response like this one
 
 ```
 {
-    "pk": 9,
+    "id": 9,
     "created_at": "2015-08-15T17:52:59.546344Z",
     "address": "BPMAddress object",
     "confirmations_required": 16,
@@ -69,7 +69,7 @@ with the following data submitted:
 
 ```
 {
-    "pk" : 9,
+    "id" : 9,
     "cancelled": true
 }
 ```
@@ -82,6 +82,6 @@ and this will cause the object be updated, and subsequently monitoring will ceas
 # FIXME: Implement PUT
 # FIXME: Implement authentication
 # FIXME: Write unit-tests
-
+# FIXME: Logging facility ! Preferably something that is system-wide to our platform.
 
 

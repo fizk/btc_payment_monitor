@@ -256,6 +256,15 @@ class Command(BaseCommand):
 					# we can do calculations with it pertaining to our monitoring
 					# (only if not done before!)
 
+					# FIXME: Rewrite the check so that we do not go through a loop
+					# to check if any of the monitoring-addresses is in the transaction
+					# -- use only .index() to do this.
+
+					# FIXME: Use set to figure out if any of the addresses 
+					# monitored are in the transaction-output
+					# #g = list(set(folk).intersection(set(monitoring)))
+
+
 					for self.monitor_addresses_cnt in range(0, len(self.monitor_addresses)):
 						monitor_address_found = True
 
@@ -278,7 +287,7 @@ class Command(BaseCommand):
 							# but we do not allow that. If we would, we might risk that we believe payment has
 							# been received in the address specified in the watch (which is correct), but 
 							# then the other address specified in the transaction picks up the money and leaves, 
-							# leaving nothing with us. Hence, they might use our service without paying.
+							# leaving nothing with us. Hence, they might use our services without paying.
 							#
 							
 							if (len(block_vtx_info['vout'][block_vtx_vout_cnt]['scriptPubKey']['addresses']) > 1 ):
