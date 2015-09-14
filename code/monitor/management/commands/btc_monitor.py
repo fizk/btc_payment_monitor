@@ -256,6 +256,8 @@ class Command(BaseCommand):
 					# we can do calculations with it pertaining to our monitoring
 					# (only if not done before!)
 
+					# FIXME: Do fixes!
+
 					# FIXME: Rewrite the check so that we do not go through a loop
 					# to check if any of the monitoring-addresses is in the transaction
 					# -- use only .index() to do this.
