@@ -13,8 +13,6 @@ import random
 
 from pprint import pprint
 
-# FIXME: How many blocks to loop through?
-# FIXME: Limitation, an address can only be monitored once ...
 # FIXME: TimeZone problem
 # FIXME: We should include checks at start-up,
 # 	that make sure that the bitcoind server is behaving.
