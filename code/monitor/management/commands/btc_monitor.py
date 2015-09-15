@@ -11,9 +11,8 @@ import time
 import datetime
 import random
 
+from pprint import pprint
 
-# FIXME: How many blocks to loop through?
-# FIXME: Limitation, an address can only be monitored once ...
 # FIXME: TimeZone problem
 # FIXME: We should include checks at start-up,
 # 	that make sure that the bitcoind server is behaving.
@@ -72,26 +71,36 @@ class Command(BaseCommand):
 			cancelled=False
 		)
 
-
+		# First, prepare a mapping between monitoring-objects and addresses;
+		# i.e., a shortcut wereby we can later get relevant monitoring-object
+		# by invoking an address.
 		# 
-		# Figure out from what block we should start;
+		# Second, figure out from what block we should start;
 		# generally, we want to be 'inclusive', so that
 		# we might scan the same block more than once.
-		# Here, we set the start at the lowest block
+		# We set the start at the lowest block
 		# number specified among the items we should watch
 		# -- the specification being either the last block
 		# number scanned, or the block number we were instructed
 		# to begin at
 		#
-
+		
 		for bpm_monitor_objs_cnt in range(0, len(self.bpm_monitor_objs)):
 			self.monitor_addresses.append(self.bpm_monitor_objs[bpm_monitor_objs_cnt].address.address)
-			self.monitor_addresses_obj_mapping[self.bpm_monitor_objs[bpm_monitor_objs_cnt].address.address] = bpm_monitor_objs_cnt
+
+			try:
+				len(self.monitor_addresses_obj_mapping[self.bpm_monitor_objs[bpm_monitor_objs_cnt]])
+
+			except KeyError:
+				self.monitor_addresses_obj_mapping[self.bpm_monitor_objs[bpm_monitor_objs_cnt].address.address] = []
+
+			self.monitor_addresses_obj_mapping[self.bpm_monitor_objs[bpm_monitor_objs_cnt].address.address].append(bpm_monitor_objs_cnt)
+			
 
 			if (self.bpm_monitor_objs[bpm_monitor_objs_cnt].block_number_scanned == 0):
 				self.bpm_monitor_objs[bpm_monitor_objs_cnt].block_number_scanned = self.bpm_monitor_objs[bpm_monitor_objs_cnt].block_number_start
 
-			if (self.bpm_monitor_objs[bpm_monitor_objs_cnt].block_number_start < self.block_number_current):
+			if (self.bpm_monitor_objs[bpm_monitor_objs_cnt].block_number_scanned < self.block_number_current):
 				self.block_number_current = self.bpm_monitor_objs[bpm_monitor_objs_cnt].block_number_scanned
 
 		self.debug(1, 'Figured what next block would be scanned; block_number=%i' % self.block_number_current)
@@ -264,12 +273,32 @@ class Command(BaseCommand):
 
 					self.debug(3, "Transaction payout addresses=%s" % block_vtx_info['vout'][block_vtx_vout_cnt]['scriptPubKey']['addresses'])
 
-
-					# Now, for each address in our monitoring array,
-					# we check if each an every one matches any of those
-					# in the current transaction.
+					# Check if there is an "intersection" of the 
+					# addresses in our monitoring array and those
+					# in the current transaction -- an intersection means
+					# that in this transactions, there are payments to addresses
+					# we are monitoring.
 					#
-					# If that is the case, collect some data so that
+					# This is a very fast operation -- much faster than 
+					# using a for-loop to do this.
+
+					monitor_address_found_list = list(
+						set(block_vtx_info['vout'][block_vtx_vout_cnt]['scriptPubKey']['addresses']).intersection(
+							set(self.monitor_addresses)
+						)
+					)
+
+					# No intersection - no payments, pass on
+					if (len(monitor_address_found_list) == 0):
+						pass
+
+					# We know that some addresses in our monitoring array
+					# match those in the transaction. Now,
+					# for each address in our monitoring array,
+					# we check *which* one matches those in 
+					# the current transaction.
+					#
+					# Then, we collect some data so that
 					# we can do calculations with it pertaining to our monitoring
 					# (only if not done before!)
 
@@ -286,39 +315,42 @@ class Command(BaseCommand):
 						except ValueError:
 							monitor_address_found = False
 
-						for i in range(0, len(block_vtx_info['vout'][block_vtx_vout_cnt]['scriptPubKey']['addresses'])):
-							prufa.append(block_vtx_info['vout'][block_vtx_vout_cnt]['scriptPubKey']['addresses'][i])
+						if (monitor_address_found is not True):
+							continue
 
-						if (monitor_address_found == True):
-							self.debug(2, "Found payment to address being monitored; tx=%s, address=%s" % (b2lx(block_vtx.GetHash()), self.monitor_addresses[self.monitor_addresses_cnt]))
+						self.debug(2, "Found payment to address being monitored; tx=%s, address=%s" % (b2lx(block_vtx.GetHash()), self.monitor_addresses[self.monitor_addresses_cnt]))
 
 
-							# NOTE:
-							# It is possible to have multiple addresses picking up the same payment --
-							# but we do not allow that. If we would, we might risk that we believe payment has
-							# been received in the address specified in the watch (which is correct), but 
-							# then the other address specified in the transaction picks up the money and leaves, 
-							# leaving nothing with us. Hence, they might use our services without paying.
-							#
-							
-							if (len(block_vtx_info['vout'][block_vtx_vout_cnt]['scriptPubKey']['addresses']) > 1 ):
-								self.say("Found payment, but it has multiple destinations; cannot trust that the destination address specified in our watch request is the only recipient -- will not consider this as a payment as a result. Skipping. Transaction; tx=%s" % b2lx(block_vtx.GetHash()))
-								continue 
+						# NOTE:
+						# It is possible to have multiple addresses picking up the same payment --
+						# but we do not allow that. If we would, we might risk that we believe payment has
+						# been received in the address specified in the watch (which is correct), but 
+						# then the other address specified in the transaction picks up the money and leaves, 
+						# leaving nothing with us. Hence, they might use our services without paying.
+						#
+						
+						if (len(block_vtx_info['vout'][block_vtx_vout_cnt]['scriptPubKey']['addresses']) > 1):
+							self.say("Found payment, but it has multiple destinations; cannot trust that the destination address specified in our watch request is the only recipient -- will not consider this as a payment as a result. Skipping. Transaction; tx=%s" % b2lx(block_vtx.GetHash()))
+							continue 
 
-							# Now, we know that one of the addresses
-							# we are monitoring received a payment.
-							# Check if we have any information about this
-							# from a previous run. If so, do nothing about this.
-
+						# Now, we know that one of the addresses
+						# we are monitoring received a payment.
+						# Check if we have any information about this
+						# from a previous run. If so, do nothing about this.
+						
+						for monitor_addresses_obj_mapping_idx in range(0, len(self.monitor_addresses_obj_mapping[self.monitor_addresses[self.monitor_addresses_cnt]])):
 							# Find the monitoring-objects via the linkage dict
-							pm_obj = self.bpm_monitor_objs[self.monitor_addresses_obj_mapping[self.monitor_addresses[self.monitor_addresses_cnt]]]
+							pm_obj = self.bpm_monitor_objs[self.monitor_addresses_obj_mapping[self.monitor_addresses[self.monitor_addresses_cnt]][monitor_addresses_obj_mapping_idx]]
 
 							# Calculate the value of the vout
 							trans_value = int(block_vtx_info['vout'][block_vtx_vout_cnt]['value'] * 100000000)
 
-							#						
+
+							#
 							# Try to find this particular vout, transaction and value
 							# among previous transactions that belong to this monitoring object
+							# Note: No risk of race conditions here, as we are searching for
+							# transactions *assigned* to the monitoring object.
 							#
 
 							trans_arr = pm_obj.transactions.filter(
@@ -344,6 +376,11 @@ class Command(BaseCommand):
 								transaction.confirmations = block_vtx_info['confirmations']
 								transaction.save()
 
+								# Refresh object from DB -- other part
+								# of the system might have changed it since we loaded!
+								pm_obj = BPMPaymentMonitor.objects.filter(pk=pm_obj.pk)[0]
+
+								# Add the new transaction to the monitoring-object and save
 								pm_obj.transactions.add(transaction)
 								pm_obj.save()
 
@@ -351,7 +388,7 @@ class Command(BaseCommand):
 								# Do updating on the monitoring object
 								#
 
-								self.debug(3, "Updating amoint received, etc. ..")	
+								self.debug(3, "Updating amoint received, etc. ..")
 								pm_obj.update_calculations()
 								self.debug(3, "... finished")
 
@@ -363,13 +400,15 @@ class Command(BaseCommand):
 			# what block we have reached
 
 			for pm_obj in self.bpm_monitor_objs:
-				pm_obj.block_number_scanned = self.block_number_current
 
 				# Only save occationally to save resources
 				# -- not much will be lost anyway, and over 
 				# time we might save quite a lot of resources
 
 				if (random.randrange(0, 10) <= 3): # Only in ~30% of cases.
+					# Force reload first 	
+					pm_obj = BPMPaymentMonitor.objects.filter(pk=pm_obj.pk)[0]
+					pm_obj.block_number_scanned = self.block_number_current
 					pm_obj.save()
 					pm_obj.update_calculations()
 

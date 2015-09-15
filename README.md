@@ -69,7 +69,6 @@ with the following data submitted:
 
 ```
 {
-    "id" : 9,
     "cancelled": true
 }
 ```
@@ -83,5 +82,5 @@ and this will cause the object be updated, and subsequently monitoring will ceas
 # FIXME: Implement authentication
 # FIXME: Write unit-tests
 # FIXME: Logging facility ! Preferably something that is system-wide to our platform.
-
+# FIXME: Table-lock when updating monitoring-objects...
 
