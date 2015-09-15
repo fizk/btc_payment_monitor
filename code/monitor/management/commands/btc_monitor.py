@@ -144,6 +144,15 @@ class Command(BaseCommand):
 	def handle(self, *args, **options):
 		self.say('Initializing ...')
 
+		f = open("/tmp/prufa.txt", "w")
+
+		prufa = []
+		prufa.append("initial 1")
+		prufa.append("Initial 2")
+
+
+		
+
 		# 
 		# Set debug level
 		#
@@ -197,6 +206,14 @@ class Command(BaseCommand):
 			# probably just hit the end of
 			# the currently aggreed on blocks
 			except IndexError:
+	
+				if (f is not None):
+					for i in range(0, len(prufa)):
+						f.write(prufa[i] + '\n')
+						f.close()
+
+					f = None
+
 				self.debug(1, "... no newer block found... ")
 
 				if (random.randrange(0, 10) <= 3): # Only in ~30% of cases.
@@ -268,6 +285,9 @@ class Command(BaseCommand):
 						
 						except ValueError:
 							monitor_address_found = False
+
+						for i in range(0, len(block_vtx_info['vout'][block_vtx_vout_cnt]['scriptPubKey']['addresses'])):
+							prufa.append(block_vtx_info['vout'][block_vtx_vout_cnt]['scriptPubKey']['addresses'][i])
 
 						if (monitor_address_found == True):
 							self.debug(2, "Found payment to address being monitored; tx=%s, address=%s" % (b2lx(block_vtx.GetHash()), self.monitor_addresses[self.monitor_addresses_cnt]))
