@@ -2,15 +2,14 @@ from django.shortcuts import render
 from monitor.models import BPMPaymentMonitor, BPMAddress
 from api.serializers import BPMPaymentMonitorSerializer
 from django.http import HttpResponseForbidden, Http404
+from django.db.models import Max
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import APIException, ParseError
 from rest_framework import status, permissions, serializers
 from pycoin.key.validate import is_address_valid as pycoin_address_validate
 from pprint import pprint
-from btc_payment_monitor.settings import BPM_NET
-
-# 
+from btc_payment_monitor.settings import BPM_NET, BPM_BLOCK_NUMBER_BEHIND_CURRENT
 
 class bpm_payment_monitor_list(APIView):
 	"""
@@ -99,6 +98,18 @@ class bpm_payment_monitor_list(APIView):
 
 		if (serializer.initial_data['cancelled'] == True):
 			raise ParseError('Creating already cancelled monitoring is not allowed') 
+
+		#
+		# Also, it is not allowed to create a monitoring with
+		# starting block too much behind the current one,
+		# else things would be veeeeery slow to catch up
+		#
+
+		bitcoin_current_block_number = BPMPaymentMonitor.objects.all().aggregate(Max('block_number_start'))['block_number_start__max'];
+
+		if (serializer.initial_data['block_number_start'] + BPM_BLOCK_NUMBER_BEHIND_CURRENT < bitcoin_current_block_number):
+			raise ParseError("Block number too much behind the current one")
+
 
 		if (serializer.is_valid()):
 			# Check if address provided is valid.
@@ -198,9 +209,6 @@ class bpm_payment_monitor_detail(APIView):
 			# FIXME: Do this properly, "right"
 			obj.cancelled = serializer.initial_data['cancelled']
 			obj.save()
-
-			serializer.save(
-			)
 
 			return Response(serializer.data)
 

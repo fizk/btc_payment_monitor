@@ -110,3 +110,4 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 BPM_NET = parser.get('global', 'bpm_net')
+BPM_BLOCK_NUMBER_BEHIND_CURRENT = parser.getint('global', 'bpm_block_number_behind_current')
