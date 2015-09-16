@@ -77,10 +77,8 @@ and this will cause the object be updated, and subsequently monitoring will ceas
 
 ### Authentication
 
-# FIXME: pk --> id
 # FIXME: Implement PUT
 # FIXME: Implement authentication
 # FIXME: Write unit-tests
 # FIXME: Logging facility ! Preferably something that is system-wide to our platform.
-# FIXME: Table-lock when updating monitoring-objects...
 
