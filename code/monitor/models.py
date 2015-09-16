@@ -22,23 +22,28 @@ class BPMTransactions(models.Model):
 	confirmations = models.BigIntegerField(null=False)	
 
 class BPMPaymentMonitor(models.Model):
-	created_at = models.DateTimeField(null=False, auto_now_add=True)	 # When the monitoring was created
-	address = models.ForeignKey(BPMAddress, null=False)			 # The address which we shall watch for payments
-	confirmations_required = models.PositiveSmallIntegerField(null=False, default=16) # We want an extra layer of security, we like sleeping.
+	created_at = models.DateTimeField(null=False, auto_now_add=True)			# When the monitoring was created
+	address = models.ForeignKey(BPMAddress, null=False)					# The address which we shall watch for payments
+	confirmations_required = models.PositiveSmallIntegerField(null=False, default=16)	# We want an extra layer of security, a goodnight's sleep is definiately good.
 	cancelled = models.BooleanField(default=False)
-	block_number_start = models.PositiveIntegerField(null=False)		 # At what block to start checking
+	block_number_start = models.PositiveIntegerField(null=False)				# At what block to start checking
 	block_number_scanned = models.PositiveIntegerField(null=False, default=0)
-       	amount_desired = models.BigIntegerField(null=False)			 # Amount, in satoshi units
-	amount_paid = models.BigIntegerField(null=False, default=0)		 # Ditto.
-	goal_reached = models.BooleanField(default=False)			 # Indicates that the address has received 'amount_desired'
-        goal_reached_at = models.DateTimeField(null=True, auto_now_add=False) # Indicate when (approximately) the address reached amount_desired
+       	amount_desired = models.BigIntegerField(null=False)					# Amount, in satoshi units
+	amount_paid = models.BigIntegerField(null=False, default=0)				# Ditto.
+	goal_reached = models.BooleanField(default=False)					# Indicates that the address has received 'amount_desired'
+        goal_reached_at = models.DateTimeField(null=True, auto_now_add=False)			# Indicate when (approximately) the address reached amount_desired
 	addresses_from = models.ManyToManyField(BPMAddress_from)		 
 	transactions = models.ManyToManyField(BPMTransactions)
 
 	def update_calculations(self):
 		amount_paid_total = 0
-		transactions_vouts_confirmations_cnt = 0
+		transactions_vouts_confirmations_ok = 0
 
+		# Go through each transaction, check if confirmations for 
+		# each are at least the specified minimum. From this,
+		# calculate "valid confirmations" count.
+		# Also, calculate how much the address has received.
+		
 		for transaction_item in self.transactions.all():
 			amount_paid_total += transaction_item.amount
 
@@ -47,7 +52,10 @@ class BPMPaymentMonitor(models.Model):
 
 		self.amount_paid = amount_paid_total
 
-		# FIXME: confirmations_required also -- is this correct?
+		# Check if amount paid is equal or higher than amount desired.
+		# Also, if number of "valid confirmations" is at least the same as number
+		# of transactions, i.e. all of the transactions have been confirmed sufficiently often.
+		# If both of these conditions are fulfilled, then the goal has been reached, else it hasn't.
 		if ((self.amount_paid >= self.amount_desired) and (transactions_vouts_confirmations_ok >= len(self.transactions.all()))):
 			self.goal_reached = True
 			self.goal_reached_at = datetime.now()
@@ -55,4 +63,5 @@ class BPMPaymentMonitor(models.Model):
 		else:
 			self.goal_reached = False
 
-		self.save()
+		# Save, but update only the fields which need updating.
+		self.save(update_fields=['amount_paid', 'goal_reached', 'goal_reached_at'])

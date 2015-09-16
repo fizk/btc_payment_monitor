@@ -73,7 +73,7 @@ class Command(BaseCommand):
 
 		# First, prepare a mapping between monitoring-objects and addresses;
 		# i.e., a shortcut wereby we can later get relevant monitoring-object
-		# by invoking an address.
+		# by a known address.
 		# 
 		# Second, figure out from what block we should start;
 		# generally, we want to be 'inclusive', so that
@@ -123,8 +123,8 @@ class Command(BaseCommand):
 		#
 
 		for bpm_monitor_objs_cnt in range(0, len(self.bpm_monitor_objs)):
-			pm_obj = self.bpm_monitor_objs[bpm_monitor_objs_cnt]
-			pm_obj_transactions = pm_obj.transactions.all()
+			bpm_obj = self.bpm_monitor_objs[bpm_monitor_objs_cnt]
+			bpm_obj_transactions = bpm_obj.transactions.all()
 
 			#
 			# Now, for each transaction associated with that, 
@@ -132,7 +132,7 @@ class Command(BaseCommand):
 			# and save that with the transaction.
 			#
 
-			for bpm_transaction in pm_obj_transactions:
+			for bpm_transaction in bpm_obj_transactions:
 				block_vtx_info = self.proxy._call('getrawtransaction', bpm_transaction.transaction_hash, 1)
 
 				#
@@ -152,15 +152,6 @@ class Command(BaseCommand):
 
 	def handle(self, *args, **options):
 		self.say('Initializing ...')
-
-		f = open("/tmp/prufa.txt", "w")
-
-		prufa = []
-		prufa.append("initial 1")
-		prufa.append("Initial 2")
-
-
-		
 
 		# 
 		# Set debug level
@@ -215,14 +206,6 @@ class Command(BaseCommand):
 			# probably just hit the end of
 			# the currently aggreed on blocks
 			except IndexError:
-	
-				if (f is not None):
-					for i in range(0, len(prufa)):
-						f.write(prufa[i] + '\n')
-						f.close()
-
-					f = None
-
 				self.debug(1, "... no newer block found... ")
 
 				if (random.randrange(0, 10) <= 3): # Only in ~30% of cases.
@@ -340,7 +323,7 @@ class Command(BaseCommand):
 						
 						for monitor_addresses_obj_mapping_idx in range(0, len(self.monitor_addresses_obj_mapping[self.monitor_addresses[self.monitor_addresses_cnt]])):
 							# Find the monitoring-objects via the linkage dict
-							pm_obj = self.bpm_monitor_objs[self.monitor_addresses_obj_mapping[self.monitor_addresses[self.monitor_addresses_cnt]][monitor_addresses_obj_mapping_idx]]
+							bpm_obj = self.bpm_monitor_objs[self.monitor_addresses_obj_mapping[self.monitor_addresses[self.monitor_addresses_cnt]][monitor_addresses_obj_mapping_idx]]
 
 							# Calculate the value of the vout
 							trans_value = int(block_vtx_info['vout'][block_vtx_vout_cnt]['value'] * 100000000)
@@ -353,7 +336,7 @@ class Command(BaseCommand):
 							# transactions *assigned* to the monitoring object.
 							#
 
-							trans_arr = pm_obj.transactions.filter(
+							trans_arr = bpm_obj.transactions.filter(
 								transaction_hash = b2lx(block_vtx.GetHash())
 							).filter(
 								amount = trans_value
@@ -378,18 +361,19 @@ class Command(BaseCommand):
 
 								# Refresh object from DB -- other part
 								# of the system might have changed it since we loaded!
-								pm_obj = BPMPaymentMonitor.objects.filter(pk=pm_obj.pk)[0]
+								bpm_obj = BPMPaymentMonitor.objects.filter(pk=bpm_obj.pk)[0]
 
 								# Add the new transaction to the monitoring-object and save
-								pm_obj.transactions.add(transaction)
-								pm_obj.save()
+								# Note: We only update the transactions field, to avoid
+								# possible race-conditions (with the API, when that is updating fields).
+								bpm_obj.transactions.add(transaction)
 
 								#
 								# Do updating on the monitoring object
 								#
 
 								self.debug(3, "Updating amoint received, etc. ..")
-								pm_obj.update_calculations()
+								bpm_obj.update_calculations()
 								self.debug(3, "... finished")
 
 							else:
@@ -399,7 +383,7 @@ class Command(BaseCommand):
 			# For each we are monitoring, save
 			# what block we have reached
 
-			for pm_obj in self.bpm_monitor_objs:
+			for bpm_obj in self.bpm_monitor_objs:
 
 				# Only save occationally to save resources
 				# -- not much will be lost anyway, and over 
@@ -407,10 +391,10 @@ class Command(BaseCommand):
 
 				if (random.randrange(0, 10) <= 3): # Only in ~30% of cases.
 					# Force reload first 	
-					pm_obj = BPMPaymentMonitor.objects.filter(pk=pm_obj.pk)[0]
-					pm_obj.block_number_scanned = self.block_number_current
-					pm_obj.save()
-					pm_obj.update_calculations()
+					bpm_obj = BPMPaymentMonitor.objects.filter(pk=bpm_obj.pk)[0]
+					bpm_obj.block_number_scanned = self.block_number_current
+					bpm_obj.save(update_fields=['block_number_scanned'])
+					bpm_obj.update_calculations()
 
 			# Increment block number for next round 
 			self.block_number_current += 1
