@@ -117,7 +117,7 @@ REST_FRAMEWORK = {
 	# If you remove this, we are fucked.
 	'DEFAULT_PERMISSION_CLASSES': (
 		'rest_framework.permissions.IsAuthenticated',
-	)
+	),
         
 	# Force JSON renderer to output
 	# Non-UTF8 characters, instead outputting
