@@ -109,5 +109,24 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+#
+# REST API
+#
+
+REST_FRAMEWORK = {
+	# If you remove this, we are fucked.
+	'DEFAULT_PERMISSION_CLASSES': (
+		'rest_framework.permissions.IsAuthenticated',
+	)
+        
+	# Force JSON renderer to output
+	# Non-UTF8 characters, instead outputting
+	# as ASCII. Otherwise our webservice
+	# will output characters that might or might not
+	# be treated as unicode.
+	'UNICODE_JSON': False
+}
+
+
 BPM_NET = parser.get('global', 'bpm_net')
 BPM_BLOCK_NUMBER_BEHIND_CURRENT = parser.getint('global', 'bpm_block_number_behind_current')
